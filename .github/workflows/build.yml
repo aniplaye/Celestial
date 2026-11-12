@@ -1,0 +1,30 @@
+# Celestial cloud build WITHOUT wrapper (fallback).
+# Use this if gradle-wrapper.jar won't upload to your repo.
+# Same steps: in your repo create .github/workflows/build.yml
+# (Add file -> Create new file), paste everything below the line, Commit.
+
+name: build
+on: [pull_request, push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: setup gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.8.2'
+      - name: build
+        run: gradle build
+      - name: capture build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: Celestial
+          path: build/libs/
