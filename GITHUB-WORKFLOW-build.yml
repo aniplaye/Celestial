@@ -1,0 +1,38 @@
+# Celestial cloud build — GitHub Actions workflow.
+#
+# HOW TO USE (no JDK / Gradle / disk space needed on your PC):
+#   1. Create a free account at https://github.com and a new repository.
+#   2. Upload everything from the celestial/ folder to the repo root
+#      (build.gradle, settings.gradle, gradlew, gradle/, src/ ...).
+#   3. In the repo, create this exact path: .github/workflows/build.yml
+#      and paste the workflow below the line into it. Commit.
+#   4. Open the Actions tab, click the run, download the "Celestial" artifact.
+#   5. Inside it is celestial-1.0.0.jar — put THAT in your mods/ folder.
+#
+# ---------------- workflow starts below this line ----------------
+
+name: build
+on: [pull_request, push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: build
+        run: ./gradlew build
+      - name: capture build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: Celestial
+          path: build/libs/

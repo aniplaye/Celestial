@@ -1,0 +1,13 @@
+{
+	"required": true,
+	"package": "com.celestial.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"PauseMenuMixin",
+		"XRayMixin",
+		"EntityAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

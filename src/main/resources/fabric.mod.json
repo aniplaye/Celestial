@@ -1,0 +1,29 @@
+{
+	"schemaVersion": 1,
+	"id": "celestial",
+	"version": "${version}",
+	"name": "Celestial Client",
+	"description": "A premium pink-accented glassmorphism utility client for Minecraft 26.3.",
+	"authors": [
+		"Vawue"
+	],
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"main": [
+			"com.celestial.CelestialMod"
+		],
+		"client": [
+			"com.celestial.client.CelestialClient"
+		]
+	},
+	"mixins": [
+		"celestial.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"fabric-api": "*",
+		"minecraft": "~26.3",
+		"java": ">=25"
+	}
+}
