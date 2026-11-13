@@ -12,6 +12,7 @@ import com.celestial.client.module.Module;
 import com.celestial.client.module.ModuleManager;
 import com.celestial.client.profile.ProfileManager;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -21,8 +22,14 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /**
- * The Celestial client interface. Opens on ESC (via PauseMenuMixin),
- * closes on ESC (vanilla), pauses singleplayer, never pauses multiplayer.
+ * Celestial in-game menu (press ESC). Glassmorphism layout:
+ * left sidebar navigation, content cards on the right, FPS/Ping pill
+ * top-right, hero banner on Home.
+ *
+ * Widgets are built in init() (NOT added()) because vanilla clears all
+ * widgets during screen setup — building earlier meant everything was
+ * wiped and the menu rendered empty. Layout runs every frame so tab
+ * switches and window resizes reposition immediately.
  */
 public class CelestialGui extends Screen {
 	public enum Tab {
@@ -49,8 +56,7 @@ public class CelestialGui extends Screen {
 	private String search = "";
 	private String selectedProfile;
 	private long tabStamp;
-	private Runnable relayoutTask = () -> {
-	};
+	private double scroll;
 
 	private final List<CelestialWidget> tabWidgets = new ArrayList<>();
 	private final List<ModuleRow> moduleRows = new ArrayList<>();
@@ -87,8 +93,9 @@ public class CelestialGui extends Screen {
 		current = this;
 		openStamp = System.currentTimeMillis();
 		tabStamp = openStamp;
-		selectedProfile = Celestial.settings.activeProfile;
-		buildTab();
+		if (selectedProfile == null) {
+			selectedProfile = Celestial.settings.activeProfile;
+		}
 	}
 
 	@Override
@@ -105,6 +112,18 @@ public class CelestialGui extends Screen {
 		ProfileManager.save(Celestial.settings.activeProfile);
 	}
 
+	/** Vanilla calls this after width/height/font are valid. Build here. */
+	@Override
+	public void init() {
+		buildTab();
+		layoutNow();
+	}
+
+	@Override
+	public void repositionElements() {
+		layoutNow();
+	}
+
 	@Override
 	public boolean isPauseScreen() {
 		Minecraft mc = Minecraft.getInstance();
@@ -116,6 +135,21 @@ public class CelestialGui extends Screen {
 		return true;
 	}
 
+	/** Scroll the module list. No @Override: keeps compiling even if the
+	 *  Screen hierarchy routes scroll events differently. */
+	public boolean mouseScrolled(double x, double y, double dx, double dy) {
+		if (tab == Tab.MODULES) {
+			int top = listTop();
+			int bottom = listBottom();
+			if (x >= contentX() && x <= contentX() + contentW() && y >= top && y <= bottom) {
+				scroll = clampScroll(scroll - dy * 18.0);
+				layoutNow();
+				return true;
+			}
+		}
+		return false;
+	}
+
 	// ---------------- layout ----------------
 
 	private double scale() {
@@ -123,11 +157,11 @@ public class CelestialGui extends Screen {
 	}
 
 	private int winW() {
-		return (int) Math.min(780 * scale(), this.width - 24);
+		return (int) Math.min(780 * scale(), Math.max(200, this.width - 20));
 	}
 
 	private int winH() {
-		return (int) Math.min(480 * scale(), this.height - 24);
+		return (int) Math.min(470 * scale(), Math.max(160, this.height - 20));
 	}
 
 	private int winX() {
@@ -136,6 +170,47 @@ public class CelestialGui extends Screen {
 
 	private int winY() {
 		return (this.height - winH()) / 2;
+	}
+
+	private int sideW() {
+		return (int) (152 * scale());
+	}
+
+	private int contentX() {
+		return winX() + sideW();
+	}
+
+	private int contentW() {
+		return winW() - sideW();
+	}
+
+	private int listTop() {
+		return winY() + (int) (118 * scale());
+	}
+
+	private int listBottom() {
+		return winY() + winH() - (int) (32 * scale());
+	}
+
+	private double clampScroll(double value) {
+		int visible = Math.max(1, listBottom() - listTop());
+		int rowH = (int) (44 * scale());
+		int total = moduleRows.size() * rowH;
+		double max = Math.max(0, total - visible);
+		if (value < 0) {
+			return 0;
+		}
+		if (value > max) {
+			return max;
+		}
+		return value;
+	}
+
+	private Font fontOrMinecraft() {
+		if (this.font != null) {
+			return this.font;
+		}
+		return Minecraft.getInstance().font;
 	}
 
 	private void track(CelestialWidget widget) {
@@ -148,36 +223,31 @@ public class CelestialGui extends Screen {
 	}
 
 	private void clearTab() {
-		for (CelestialWidget widget : tabWidgets) {
-			this.removeWidget(widget);
-		}
+		this.clearWidgets();
 		tabWidgets.clear();
 		moduleRows.clear();
 		searchBox = null;
 		profileBox = null;
 		renameBox = null;
 		hexBox = null;
-		relayoutTask = () -> {
-		};
 	}
 
 	private void switchTab(Tab next) {
 		if (tab != next) {
 			tab = next;
 			tabStamp = System.currentTimeMillis();
+			scroll = 0;
 			buildTab();
+			layoutNow();
 		}
 	}
 
 	private void buildTab() {
 		clearTab();
-		// Sidebar navigation (rebuilt per tab so selection highlights update).
 		for (Tab value : Tab.values()) {
-			NavButton button = new NavButton(value);
-			track(button);
+			track(new NavButton(value));
 		}
-		ActionButton disconnect = new DisconnectButton();
-		track(disconnect);
+		track(new DisconnectButton());
 
 		switch (tab) {
 			case HOME:
@@ -200,60 +270,127 @@ public class CelestialGui extends Screen {
 		}
 	}
 
-	private void relayoutNav(Runnable content) {
+	private void layoutNow() {
+		if (this.width <= 0 || this.height <= 0) {
+			return;
+		}
 		double s = scale();
 		int x = winX();
 		int y = winY();
-		int sb = (int) (176 * s);
+		int sb = sideW();
+		// Sidebar nav.
 		int i = 0;
 		for (CelestialWidget widget : tabWidgets) {
-			if (widget instanceof NavButton nav) {
-				int by = y + (int) (64 * s) + i * (int) (34 * s);
-				nav.setX(x + (int) (12 * s));
-				nav.setY(by);
-				nav.setSize(sb - (int) (24 * s), (int) (28 * s));
+			if (widget instanceof NavButton) {
+				int by = y + (int) (62 * s) + i * (int) (32 * s);
+				widget.setX(x + (int) (10 * s));
+				widget.setY(by);
+				widget.setSize(sb - (int) (20 * s), (int) (26 * s));
 				i++;
 			}
 		}
 		for (CelestialWidget widget : tabWidgets) {
 			if (widget instanceof DisconnectButton) {
-				widget.setX(x + (int) (12 * s));
-				widget.setY(y + winH() - (int) (44 * s));
-				widget.setSize(sb - (int) (24 * s), (int) (28 * s));
+				widget.setX(x + (int) (10 * s));
+				widget.setY(y + winH() - (int) (38 * s));
+				widget.setSize(sb - (int) (20 * s), (int) (26 * s));
 			}
 		}
-		content.run();
+		switch (tab) {
+			case HOME:
+				layoutHome();
+				break;
+			case MODULES:
+				layoutModules();
+				break;
+			case SETTINGS:
+				layoutSettings();
+				break;
+			case PROFILES:
+				layoutProfiles();
+				break;
+			case THEMES:
+				layoutThemes();
+				break;
+			case ABOUT:
+				break;
+		}
 	}
 
+	// ---------------- HOME ----------------
+
 	private void buildHome() {
-		String[] quickIds = {"xray", "antiafk", "fullbright", "sprint", "fly"};
+		String[] quickIds = {"fullbright", "esp", "nofall", "antiafk", "fly"};
 		for (String id : quickIds) {
 			Module module = ModuleManager.byId(id);
 			if (module != null) {
-				track(new QuickPill(module));
+				track(new HomeToggleRow(module));
 			}
 		}
-		relayoutTask = () -> relayoutNav(() -> {
-			double s = scale();
-			int cx = winX() + (int) (176 * s);
-			int cw = winW() - (int) (176 * s);
-			int y = winY() + (int) (168 * s);
-			int gap = (int) (8 * s);
-			int w = (cw - (int) (40 * s) - gap * 4) / 5;
-			int j = 0;
-			for (CelestialWidget widget : tabWidgets) {
-				if (widget instanceof QuickPill) {
-					widget.setX(cx + (int) (20 * s) + j * (w + gap));
-					widget.setY(y);
-					widget.setSize(w, (int) (46 * s));
-					j++;
-				}
-			}
-		});
 	}
 
+	private void layoutHome() {
+		double s = scale();
+		int cx = contentX();
+		int cw = contentW();
+		int pad = (int) (18 * s);
+		int[] geom = homeGeom();
+		int cardY = geom[4];
+		int cardH = geom[5];
+		int leftX = geom[6];
+		int leftW = geom[7];
+		int gap = (int) (10 * s);
+		int rows = 0;
+		for (CelestialWidget widget : tabWidgets) {
+			if (widget instanceof HomeToggleRow) {
+				rows++;
+			}
+		}
+		if (rows == 0) {
+			return;
+		}
+		int rowH = Math.max((int) (24 * s), (cardH - (int) (34 * s)) / Math.max(1, rows));
+		int ry = cardY + (int) (28 * s);
+		for (CelestialWidget widget : tabWidgets) {
+			if (widget instanceof HomeToggleRow) {
+				widget.setX(leftX + (int) (6 * s));
+				widget.setY(ry);
+				widget.setSize(leftW - (int) (12 * s), rowH);
+				ry += rowH + (int) (2 * s);
+			}
+		}
+	}
+
+	/**
+	 * Shared Home geometry: hx, hw, hy, hh, cardY, cardH, leftX, leftW, rightX.
+	 * Shrinks the hero banner on short windows so cards always fit.
+	 */
+	private int[] homeGeom() {
+		double s = scale();
+		int cx = contentX();
+		int cw = contentW();
+		int pad = (int) (18 * s);
+		int avail = winY() + winH() - (int) (30 * s);
+		int hy = winY() + (int) (52 * s);
+		int hh = (int) (96 * s);
+		int minCard = (int) (84 * s);
+		int labelRoom = (int) (24 * s);
+		if (hy + hh + labelRoom + minCard > avail) {
+			hh = Math.max((int) (48 * s), avail - minCard - hy - labelRoom);
+		}
+		int cardY = hy + hh + labelRoom;
+		int cardH = Math.max(minCard, avail - cardY);
+		int gap = (int) (10 * s);
+		int leftW = Math.max(40, (cw - pad * 2 - gap) / 2);
+		int leftX = cx + pad;
+		return new int[]{cx + pad, cw - pad * 2, hy, hh, cardY, cardH, leftX, leftW, leftX + leftW + gap};
+	}
+
+	// ---------------- MODULES ----------------
+
 	private void buildModules() {
-		EditBox box = new EditBox(this.font, 0, 0, 100, 20, Component.literal("Search"));
+		Font f = fontOrMinecraft();
+		EditBox box = new EditBox(f, 0, 0, 100, 20, Component.literal("Search"));
 		box.setHint(Component.literal("Search modules..."));
 		box.setMaxLength(32);
 		box.setTextColor(0xFFFFFFFF);
@@ -262,7 +399,9 @@ public class CelestialGui extends Screen {
 		}
 		box.setResponder(value -> {
 			search = String.valueOf(value);
+			scroll = 0;
 			rebuildModuleRows();
+			layoutNow();
 		});
 		searchBox = box;
 		trackBox(box);
@@ -271,41 +410,13 @@ public class CelestialGui extends Screen {
 			track(new CategoryButton(category));
 		}
 		track(new AllButton());
+		track(new ScrollButton(true));
+		track(new ScrollButton(false));
 		rebuildModuleRows();
-
-		relayoutTask = () -> relayoutNav(() -> {
-			double s = scale();
-			int cx = winX() + (int) (176 * s);
-			int cw = winW() - (int) (176 * s);
-			int px = cx + (int) (20 * s);
-			int pw = cw - (int) (40 * s);
-			if (searchBox != null) {
-				searchBox.setX(px);
-				searchBox.setY(winY() + (int) (58 * s));
-				searchBox.setWidth(pw);
-				searchBox.setHeight((int) (22 * s));
-			}
-			int bx = px;
-			for (CelestialWidget widget : tabWidgets) {
-				if (widget instanceof CategoryButton || widget instanceof AllButton) {
-					widget.setX(bx);
-					widget.setY(winY() + (int) (88 * s));
-					widget.setSize((int) (86 * s), (int) (22 * s));
-					bx += (int) (92 * s);
-				}
-			}
-			int ry = winY() + (int) (118 * s);
-			for (ModuleRow row : moduleRows) {
-				row.setX(px);
-				row.setY(ry);
-				row.setSize(pw, (int) (34 * s));
-				ry += (int) (38 * s);
-			}
-		});
 	}
 
 	private void rebuildModuleRows() {
-		for (ModuleRow row : moduleRows) {
+		for (ModuleRow row : new ArrayList<>(moduleRows)) {
 			this.removeWidget(row);
 			tabWidgets.remove(row);
 		}
@@ -321,9 +432,65 @@ public class CelestialGui extends Screen {
 			}
 			ModuleRow row = new ModuleRow(module);
 			moduleRows.add(row);
-			track(row);
+			tabWidgets.add(row);
+			this.addRenderableWidget(row);
+		}
+		scroll = clampScroll(scroll);
+	}
+
+	private void layoutModules() {
+		double s = scale();
+		int cx = contentX();
+		int cw = contentW();
+		int px = cx + (int) (18 * s);
+		int pw = cw - (int) (36 * s);
+		if (searchBox != null) {
+			searchBox.setX(px);
+			searchBox.setY(winY() + (int) (56 * s));
+			searchBox.setWidth(Math.max(40, pw - (int) (50 * s)));
+			searchBox.setHeight((int) (20 * s));
+		}
+		for (CelestialWidget widget : tabWidgets) {
+			if (widget instanceof ScrollButton scroll) {
+				if (scroll.up) {
+					widget.setX(px + pw - (int) (48 * s));
+				} else {
+					widget.setX(px + pw - (int) (24 * s));
+				}
+				widget.setY(winY() + (int) (56 * s));
+				widget.setSize((int) (20 * s), (int) (20 * s));
+			}
+		}
+		int gap = Math.max(3, (int) (5 * s));
+		int pillW = Math.max((int) (52 * s), (pw - gap * 3) / 4);
+		int step = pillW + gap;
+		int bx = px;
+		for (CelestialWidget widget : tabWidgets) {
+			if (widget instanceof CategoryButton || widget instanceof AllButton) {
+				widget.setX(bx);
+				widget.setY(winY() + (int) (84 * s));
+				widget.setSize(pillW, (int) (20 * s));
+				bx += step;
+			}
+		}
+		int rowH = (int) (44 * scale());
+		int ry = listTop() - (int) scroll;
+		for (ModuleRow row : moduleRows) {
+			if (ry + rowH < listTop() || ry > listBottom()) {
+				// Park off-screen so clipped rows never overlap the footer.
+				row.setX(-10000);
+				row.setY(-10000);
+				row.setSize(pw, rowH);
+			} else {
+				row.setX(px);
+				row.setY(ry);
+				row.setSize(pw, rowH);
+			}
+			ry += rowH + (int) (6 * s);
 		}
 	}
+
+	// ---------------- SETTINGS ----------------
 
 	private void buildSettings() {
 		Settings settings = Celestial.settings;
@@ -337,7 +504,7 @@ public class CelestialGui extends Screen {
 				settings.opacity = round2(Math.min(1.0, settings.opacity + 0.05));
 				Store.save(settings);
 			}));
-		track(new StepperRow("Blur Intensity", () -> String.valueOf(settings.blurLayers),
+		track(new StepperRow("Blur Layers", () -> String.valueOf(settings.blurLayers),
 			() -> {
 				settings.blurLayers = Math.max(0, settings.blurLayers - 1);
 				Store.save(settings);
@@ -358,26 +525,32 @@ public class CelestialGui extends Screen {
 			settings.showPing = value;
 			Store.save(settings);
 		}));
-
-		relayoutTask = () -> relayoutNav(() -> {
-			double s = scale();
-			int cx = winX() + (int) (176 * s);
-			int pw = winW() - (int) (176 * s) - (int) (40 * s);
-			int px = cx + (int) (20 * s);
-			int ry = winY() + (int) (64 * s);
-			for (CelestialWidget widget : tabWidgets) {
-				if (widget instanceof StepperRow || widget instanceof ToggleRow) {
-					widget.setX(px);
-					widget.setY(ry);
-					widget.setSize(pw, (int) (32 * s));
-					ry += (int) (38 * s);
-				}
-			}
-		});
+		track(new ToggleRow("Show Coords", () -> settings.showCoords, value -> {
+			settings.showCoords = value;
+			Store.save(settings);
+		}));
 	}
 
+	private void layoutSettings() {
+		double s = scale();
+		int px = contentX() + (int) (18 * s);
+		int pw = contentW() - (int) (36 * s);
+		int ry = winY() + (int) (60 * s);
+		for (CelestialWidget widget : tabWidgets) {
+			if (widget instanceof StepperRow || widget instanceof ToggleRow) {
+				widget.setX(px);
+				widget.setY(ry);
+				widget.setSize(pw, (int) (30 * s));
+				ry += (int) (36 * s);
+			}
+		}
+	}
+
+	// ---------------- PROFILES ----------------
+
 	private void buildProfiles() {
-		EditBox box = new EditBox(this.font, 0, 0, 100, 20, Component.literal("Name"));
+		Font f = fontOrMinecraft();
+		EditBox box = new EditBox(f, 0, 0, 100, 20, Component.literal("Name"));
 		box.setHint(Component.literal("New profile name..."));
 		box.setMaxLength(24);
 		box.setTextColor(0xFFFFFFFF);
@@ -388,9 +561,10 @@ public class CelestialGui extends Screen {
 				ProfileManager.create(profileBox.getValue());
 				profileBox.setValue("");
 				refreshProfileRows();
+				layoutNow();
 			}
 		}));
-		EditBox rename = new EditBox(this.font, 0, 0, 100, 20, Component.literal("Rename"));
+		EditBox rename = new EditBox(f, 0, 0, 100, 20, Component.literal("Rename"));
 		rename.setHint(Component.literal("Rename selected..."));
 		rename.setMaxLength(24);
 		rename.setTextColor(0xFFFFFFFF);
@@ -402,66 +576,66 @@ public class CelestialGui extends Screen {
 				selectedProfile = Celestial.settings.activeProfile;
 				renameBox.setValue("");
 				refreshProfileRows();
+				layoutNow();
 			}
 		}));
-
-		relayoutTask = () -> relayoutNav(() -> {
-			double s = scale();
-			int cx = winX() + (int) (176 * s);
-			int pw = winW() - (int) (176 * s) - (int) (40 * s);
-			int px = cx + (int) (20 * s);
-			int top = winY() + (int) (58 * s);
-			if (profileBox != null) {
-				profileBox.setX(px);
-				profileBox.setY(top);
-				profileBox.setWidth(pw - (int) (100 * s));
-				profileBox.setHeight((int) (22 * s));
-			}
-			if (renameBox != null) {
-				renameBox.setX(px);
-				renameBox.setY(top + (int) (30 * s));
-				renameBox.setWidth(pw - (int) (100 * s));
-				renameBox.setHeight((int) (22 * s));
-			}
-			boolean first = true;
-			for (CelestialWidget widget : tabWidgets) {
-				if (widget instanceof CreateButton || widget instanceof RenameButton) {
-					widget.setX(px + pw - (int) (94 * s));
-					widget.setY(top + (first ? 0 : (int) (30 * s)));
-					widget.setSize((int) (94 * s), (int) (22 * s));
-					first = false;
-				}
-			}
-			java.util.Map<String, Integer> rowY = new java.util.HashMap<>();
-			int ry = top + (int) (64 * s);
-			for (CelestialWidget widget : tabWidgets) {
-				if (widget instanceof ProfileRow row) {
-					row.setX(px);
-					row.setY(ry);
-					row.setSize(pw, (int) (30 * s));
-					rowY.put(row.name, ry);
-					ry += (int) (34 * s);
-				}
-			}
-			for (CelestialWidget widget : tabWidgets) {
-				if (widget instanceof ActionButton button && button.tag != null) {
-					Integer y = rowY.get(button.tag.substring(button.tag.indexOf(':') + 1));
-					if (y == null) {
-						continue;
-					}
-					if (button.tag.startsWith("del:")) {
-						button.setX(px + pw - (int) (48 * s));
-						button.setY(y + (int) (4 * s));
-						button.setSize((int) (44 * s), (int) (22 * s));
-					} else if (button.tag.startsWith("load:")) {
-						button.setX(px + pw - (int) (104 * s));
-						button.setY(y + (int) (4 * s));
-						button.setSize((int) (52 * s), (int) (22 * s));
-					}
-				}
-			}
-		});
 		refreshProfileRows();
+	}
+
+	private void layoutProfiles() {
+		double s = scale();
+		int px = contentX() + (int) (18 * s);
+		int pw = contentW() - (int) (36 * s);
+		int top = winY() + (int) (58 * s);
+		if (profileBox != null) {
+			profileBox.setX(px);
+			profileBox.setY(top);
+			profileBox.setWidth(pw - (int) (100 * s));
+			profileBox.setHeight((int) (20 * s));
+		}
+		if (renameBox != null) {
+			renameBox.setX(px);
+			renameBox.setY(top + (int) (28 * s));
+			renameBox.setWidth(pw - (int) (100 * s));
+			renameBox.setHeight((int) (20 * s));
+		}
+		boolean first = true;
+		for (CelestialWidget widget : tabWidgets) {
+			if (widget instanceof CreateButton || widget instanceof RenameButton) {
+				widget.setX(px + pw - (int) (94 * s));
+				widget.setY(top + (first ? 0 : (int) (28 * s)));
+				widget.setSize((int) (94 * s), (int) (20 * s));
+				first = false;
+			}
+		}
+		java.util.Map<String, Integer> rowY = new java.util.HashMap<>();
+		int ry = top + (int) (62 * s);
+		for (CelestialWidget widget : tabWidgets) {
+			if (widget instanceof ProfileRow row) {
+				row.setX(px);
+				row.setY(ry);
+				row.setSize(pw, (int) (28 * s));
+				rowY.put(row.name, ry);
+				ry += (int) (32 * s);
+			}
+		}
+		for (CelestialWidget widget : tabWidgets) {
+			if (widget instanceof ActionButton button && button.tag != null) {
+				Integer yy = rowY.get(button.tag.substring(button.tag.indexOf(':') + 1));
+				if (yy == null) {
+					continue;
+				}
+				if (button.tag.startsWith("del:")) {
+					button.setX(px + pw - (int) (48 * s));
+					button.setY(yy + (int) (4 * s));
+					button.setSize((int) (44 * s), (int) (20 * s));
+				} else if (button.tag.startsWith("load:")) {
+					button.setX(px + pw - (int) (104 * s));
+					button.setY(yy + (int) (4 * s));
+					button.setSize((int) (52 * s), (int) (20 * s));
+				}
+			}
+		}
 	}
 
 	private void refreshProfileRows() {
@@ -498,6 +672,7 @@ public class CelestialGui extends Screen {
 						selectedProfile = Celestial.settings.activeProfile;
 					}
 					refreshProfileRows();
+					layoutNow();
 				});
 				delete.tag = "del:" + name;
 				tabWidgets.add(delete);
@@ -505,6 +680,8 @@ public class CelestialGui extends Screen {
 			}
 		}
 	}
+
+	// ---------------- THEMES ----------------
 
 	private void buildThemes() {
 		for (Theme theme : Theme.PRESETS) {
@@ -514,7 +691,8 @@ public class CelestialGui extends Screen {
 		for (int color : swatches) {
 			track(new SwatchButton(color));
 		}
-		EditBox box = new EditBox(this.font, 0, 0, 100, 20, Component.literal("Hex"));
+		Font f = fontOrMinecraft();
+		EditBox box = new EditBox(f, 0, 0, 100, 20, Component.literal("Hex"));
 		box.setHint(Component.literal("#RRGGBB..."));
 		box.setMaxLength(9);
 		box.setTextColor(0xFFFFFFFF);
@@ -530,46 +708,45 @@ public class CelestialGui extends Screen {
 				}
 			}
 		}));
+	}
 
-		relayoutTask = () -> relayoutNav(() -> {
-			double s = scale();
-			int cx = winX() + (int) (176 * s);
-			int pw = winW() - (int) (176 * s) - (int) (40 * s);
-			int px = cx + (int) (20 * s);
-			int ry = winY() + (int) (64 * s);
-			for (CelestialWidget widget : tabWidgets) {
-				if (widget instanceof ThemeButton) {
-					widget.setX(px);
-					widget.setY(ry);
-					widget.setSize(pw, (int) (30 * s));
-					ry += (int) (34 * s);
-				}
+	private void layoutThemes() {
+		double s = scale();
+		int px = contentX() + (int) (18 * s);
+		int pw = contentW() - (int) (36 * s);
+		int ry = winY() + (int) (60 * s);
+		for (CelestialWidget widget : tabWidgets) {
+			if (widget instanceof ThemeButton) {
+				widget.setX(px);
+				widget.setY(ry);
+				widget.setSize(pw, (int) (28 * s));
+				ry += (int) (32 * s);
 			}
-			ry += (int) (6 * s);
-			int sx = px;
-			for (CelestialWidget widget : tabWidgets) {
-				if (widget instanceof SwatchButton) {
-					widget.setX(sx);
-					widget.setY(ry);
-					widget.setSize((int) (28 * s), (int) (28 * s));
-					sx += (int) (34 * s);
-				}
+		}
+		ry += (int) (4 * s);
+		int sx = px;
+		for (CelestialWidget widget : tabWidgets) {
+			if (widget instanceof SwatchButton) {
+				widget.setX(sx);
+				widget.setY(ry);
+				widget.setSize((int) (26 * s), (int) (26 * s));
+				sx += (int) (32 * s);
 			}
-			ry += (int) (36 * s);
-			if (hexBox != null) {
-				hexBox.setX(px);
-				hexBox.setY(ry);
-				hexBox.setWidth(pw - (int) (100 * s));
-				hexBox.setHeight((int) (22 * s));
+		}
+		ry += (int) (34 * s);
+		if (hexBox != null) {
+			hexBox.setX(px);
+			hexBox.setY(ry);
+			hexBox.setWidth(pw - (int) (100 * s));
+			hexBox.setHeight((int) (20 * s));
+		}
+		for (CelestialWidget widget : tabWidgets) {
+			if (widget instanceof ApplyButton) {
+				widget.setX(px + pw - (int) (94 * s));
+				widget.setY(ry);
+				widget.setSize((int) (94 * s), (int) (20 * s));
 			}
-			for (CelestialWidget widget : tabWidgets) {
-				if (widget instanceof ApplyButton) {
-					widget.setX(px + pw - (int) (94 * s));
-					widget.setY(ry);
-					widget.setSize((int) (94 * s), (int) (22 * s));
-				}
-			}
-		});
+		}
 	}
 
 	// ---------------- actions ----------------
@@ -605,6 +782,7 @@ public class CelestialGui extends Screen {
 		index = (index + direction + steps.length) % steps.length;
 		Celestial.settings.guiScale = steps[index];
 		Store.save(Celestial.settings);
+		layoutNow();
 	}
 
 	private static double round2(double value) {
@@ -631,8 +809,9 @@ public class CelestialGui extends Screen {
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-		relayoutTask.run();
+		layoutNow();
 		drawBackdrop(graphics);
+		drawHudPill(graphics);
 		drawWindow(graphics);
 		drawContent(graphics);
 		for (Object child : this.children()) {
@@ -644,7 +823,40 @@ public class CelestialGui extends Screen {
 
 	private void drawBackdrop(GuiGraphicsExtractor graphics) {
 		float a = CelestialWidget.anim() * (float) Celestial.settings.opacity;
-		graphics.fill(0, 0, this.width, this.height, CelestialWidget.withAlpha(0xAA050508, a * 0.55f));
+		int dim = CelestialWidget.withAlpha(0xCC050508, Math.min(1.0f, a * 0.75f + 0.25f));
+		graphics.fill(0, 0, this.width, this.height, dim);
+	}
+
+	private void drawHudPill(GuiGraphicsExtractor graphics) {
+		boolean fps = Celestial.settings.showFps;
+		boolean ping = Celestial.settings.showPing;
+		if (!fps && !ping) {
+			return;
+		}
+		Minecraft mc = Minecraft.getInstance();
+		StringBuilder text = new StringBuilder();
+		if (fps) {
+			text.append("FPS: ").append(mc != null ? mc.getFps() : "--");
+		}
+		if (fps && ping) {
+			text.append("   |   ");
+		}
+		if (ping) {
+			text.append("Ping: ").append(pingText(mc));
+		}
+		String line = text.toString();
+		Font f = fontOrMinecraft();
+		int tw = f.width(line);
+		int pw = tw + 20;
+		int px = this.width - pw - 8;
+		int py = 8;
+		float a = CelestialWidget.anim();
+		graphics.fill(px, py, px + pw, py + 18, CelestialWidget.withAlpha(0xE0101014, a));
+		graphics.outline(px, py, px + pw, py + 18,
+			CelestialWidget.withAlpha(Theme.current.accent & 0x00FFFFFF | 0x66000000, a));
+		graphics.fill(px + 4, py + 16, px + pw - 4, py + 17,
+			CelestialWidget.withAlpha(Theme.current.accent, a * 0.9f));
+		graphics.text(f, line, px + 10, py + 5, CelestialWidget.withAlpha(0xFFFFFFFF, a), true);
 	}
 
 	private void drawWindow(GuiGraphicsExtractor graphics) {
@@ -653,7 +865,6 @@ public class CelestialGui extends Screen {
 		int w = winW();
 		int h = winH();
 		float a = CelestialWidget.anim() * (float) Celestial.settings.opacity;
-		// Soft blur illusion: layered translucent fills.
 		for (int i = Celestial.settings.blurLayers; i >= 1; i--) {
 			int pad = i * 5;
 			graphics.fill(x - pad, y - pad, x + w + pad, y + h + pad,
@@ -663,35 +874,52 @@ public class CelestialGui extends Screen {
 		graphics.outline(x, y, x + w, y + h, CelestialWidget.withAlpha(accentBorder(), a));
 		graphics.fill(x, y, x + w, y + 1, CelestialWidget.withAlpha(Theme.current.accent, a * 0.8f));
 
-		// Sidebar divider + logo.
 		double s = scale();
-		int sb = (int) (176 * s);
+		int sb = sideW();
 		graphics.fill(x + sb, y + (int) (10 * s), x + sb + 1, y + h - (int) (10 * s),
 			CelestialWidget.withAlpha(Theme.current.accent & 0x00FFFFFF | 0x33000000, a));
-		long pulse = System.currentTimeMillis() % 2000;
-		float glow = 0.55f + 0.35f * (float) Math.sin(pulse / 2000.0 * Math.PI * 2.0);
-		if (!Celestial.settings.animations) {
-			glow = 0.8f;
-		}
-		int diamond = (int) (10 * s);
-		int dx = x + (int) (24 * s);
-		int dy = y + (int) (26 * s);
-		int accent = Theme.current.accent;
-		graphics.fill(dx - diamond / 2, dy - 1, dx + diamond / 2, dy + 1, CelestialWidget.withAlpha(accent, a * glow));
-		graphics.fill(dx - 1, dy - diamond / 2, dx + 1, dy + diamond / 2, CelestialWidget.withAlpha(accent, a * glow));
-		graphics.text(this.font, "CELESTIAL", x + (int) (40 * s), y + (int) (20 * s),
+		// Sidebar logo: sparkle + name.
+		drawSparkle(graphics, x + (int) (24 * s), y + (int) (26 * s), (int) (9 * s), a);
+		graphics.text(this.font != null ? this.font : Minecraft.getInstance().font,
+			"Celestial Client", x + (int) (40 * s), y + (int) (20 * s),
 			CelestialWidget.withAlpha(0xFFFFFFFF, a), true);
-		graphics.text(this.font, Celestial.VERSION, x + (int) (40 * s), y + (int) (32 * s),
-			CelestialWidget.withAlpha(accent, a), true);
+		graphics.text(this.font != null ? this.font : Minecraft.getInstance().font,
+			"v" + Celestial.VERSION.replace("v", ""), x + (int) (40 * s), y + (int) (32 * s),
+			CelestialWidget.withAlpha(Theme.current.accent, a), true);
 
 		// Content header.
 		int cx = x + sb;
-		graphics.text(this.font, tab.label.toUpperCase(), cx + (int) (20 * s), y + (int) (20 * s),
+		Font hf = this.font != null ? this.font : Minecraft.getInstance().font;
+		graphics.text(hf,
+			tab.label, cx + (int) (18 * s), y + (int) (16 * s),
 			CelestialWidget.withAlpha(0xFFFFFFFF, a), true);
-		graphics.fill(cx + (int) (20 * s), y + (int) (36 * s), cx + (int) (70 * s), y + (int) (37 * s),
-			CelestialWidget.withAlpha(accent, a * 0.9f));
-		graphics.text(this.font, "ESC to close", x + w - this.font.width("ESC to close") - (int) (14 * s),
+		String sub = switch (tab) {
+			case HOME -> "Welcome to Celestial Client.";
+			case MODULES -> "Toggle and configure every module.";
+			case SETTINGS -> "Tune the client to your liking.";
+			case PROFILES -> "Save and load module presets.";
+			case THEMES -> "Make it yours.";
+			case ABOUT -> "About this client.";
+		};
+		graphics.text(this.font != null ? this.font : Minecraft.getInstance().font,
+			sub, cx + (int) (18 * s), y + (int) (30 * s),
+			CelestialWidget.withAlpha(0xFF999999, a), true);
+		graphics.text(hf,
+			"ESC to close", x + w - hf.width("ESC to close") - (int) (14 * s),
 			y + h - (int) (20 * s), CelestialWidget.withAlpha(0xFF888888, a), true);
+	}
+
+	private void drawSparkle(GuiGraphicsExtractor g, int cx, int cy, int r, float a) {
+		int accent = Theme.current.accent;
+		long pulse = System.currentTimeMillis() % 2000;
+		float glow = 0.6f + 0.3f * (float) Math.sin(pulse / 2000.0 * Math.PI * 2.0);
+		if (!Celestial.settings.animations) {
+			glow = 0.85f;
+		}
+		g.fill(cx - r, cy - 1, cx + r, cy + 1, CelestialWidget.withAlpha(accent, a * glow));
+		g.fill(cx - 1, cy - r, cx + 1, cy + r, CelestialWidget.withAlpha(accent, a * glow));
+		int c = Math.max(2, r / 3);
+		g.fill(cx - c, cy - c, cx + c, cy + c, CelestialWidget.withAlpha(0xFFFFFFFF, a * glow));
 	}
 
 	private int accentBorder() {
@@ -700,78 +928,141 @@ public class CelestialGui extends Screen {
 
 	private void drawContent(GuiGraphicsExtractor graphics) {
 		double s = scale();
-		int cx = winX() + (int) (176 * s);
+		int cx = contentX();
+		int cw = contentW();
+		int pad = (int) (18 * s);
 		int y = winY();
 		float a = CelestialWidget.anim();
+		Font f = this.font != null ? this.font : Minecraft.getInstance().font;
 		switch (tab) {
 			case HOME: {
-				int bx = cx + (int) (20 * s);
-				int bw = winW() - (int) (176 * s) - (int) (40 * s);
-				int by = y + (int) (58 * s);
-				int bh = (int) (92 * s);
-				graphics.fill(bx, by, bx + bw, by + bh, CelestialWidget.withAlpha(0xE016161C, a));
-				graphics.outline(bx, by, bx + bw, by + bh,
-					CelestialWidget.withAlpha(accentBorder(), a));
-				graphics.fill(bx, by, bx + bw, by + 2, CelestialWidget.withAlpha(Theme.current.accent, a * 0.7f));
-				graphics.text(this.font, "Welcome to Celestial", bx + (int) (16 * s), by + (int) (16 * s),
+				int[] geom = homeGeom();
+				int hx = geom[0];
+				int hw = geom[1];
+				int hy = geom[2];
+				int hh = geom[3];
+				// Hero banner.
+				graphics.fill(hx, hy, hx + hw, hy + hh, CelestialWidget.withAlpha(0xE016161C, a));
+				graphics.outline(hx, hy, hx + hw, hy + hh, CelestialWidget.withAlpha(accentBorder(), a));
+				graphics.fill(hx, hy, hx + hw, hy + 2, CelestialWidget.withAlpha(Theme.current.accent, a * 0.8f));
+				// Faint giant sparkle on the right side.
+				int bigR = Math.max((int) (8 * s), hh / 3);
+				drawSparkle(graphics, hx + hw - (int) (64 * s), hy + hh / 2, bigR, a * 0.9f);
+				drawSparkle(graphics, hx + hw - (int) (36 * s), hy + Math.max((int) (14 * s), hh / 4), (int) (7 * s), a * 0.7f);
+				graphics.text(f, "Celestial Client", hx + (int) (16 * s), hy + (int) (24 * s),
 					CelestialWidget.withAlpha(0xFFFFFFFF, a), true);
-				graphics.text(this.font, "Enhance your Minecraft experience.", bx + (int) (16 * s),
-					by + (int) (34 * s), CelestialWidget.withAlpha(Theme.current.accent, a), true);
-				graphics.text(this.font, "Quick Toggles", bx, by + bh + (int) (10 * s),
-					CelestialWidget.withAlpha(0xFFAAAAAA, a), true);
-				int iy = by + bh + (int) (76 * s);
-				graphics.text(this.font, "Client Information", bx, iy, CelestialWidget.withAlpha(0xFFAAAAAA, a), true);
-				graphics.text(this.font, "Version: " + Celestial.VERSION, bx, iy + (int) (16 * s),
-					CelestialWidget.withAlpha(0xFFCCCCCC, a), true);
-				graphics.text(this.font, "Build Date: " + Celestial.BUILD_DATE, bx, iy + (int) (30 * s),
-					CelestialWidget.withAlpha(0xFFCCCCCC, a), true);
-				graphics.text(this.font, "Developer: " + Celestial.DEVELOPER, bx, iy + (int) (44 * s),
-					CelestialWidget.withAlpha(Theme.current.accent, a), true);
+				graphics.text(f, "Enhance your Minecraft experience.", hx + (int) (16 * s),
+					hy + (int) (44 * s), CelestialWidget.withAlpha(Theme.current.accent, a), true);
+				if (hh >= (int) (72 * s)) {
+					graphics.text(f, "Press a toggle or open Modules for everything.", hx + (int) (16 * s),
+						hy + (int) (62 * s), CelestialWidget.withAlpha(0xFF888888, a), true);
+				}
+
+				int cardY = geom[4];
+				int cardH = geom[5];
+				int leftX = geom[6];
+				int leftW = geom[7];
+				int rightX = geom[8];
+				// Section labels.
+				graphics.text(f, "Quick Toggles", leftX, cardY - (int) (14 * s),
+					CelestialWidget.withAlpha(0xFFBBBBBB, a), true);
+				graphics.text(f, "Client Info", rightX, cardY - (int) (14 * s),
+					CelestialWidget.withAlpha(0xFFBBBBBB, a), true);
+				// Cards.
+				graphics.fill(leftX, cardY, leftX + leftW, cardY + cardH,
+					CelestialWidget.withAlpha(0xE0121216, a));
+				graphics.outline(leftX, cardY, leftX + leftW, cardY + cardH,
+					CelestialWidget.withAlpha(accentBorder(), a));
+				graphics.fill(rightX, cardY, rightX + leftW, cardY + cardH,
+					CelestialWidget.withAlpha(0xE0121216, a));
+				graphics.outline(rightX, cardY, rightX + leftW, cardY + cardH,
+					CelestialWidget.withAlpha(accentBorder(), a));
+				// Right card rows.
+				int ix = rightX + (int) (10 * s);
+				int iy = cardY + (int) (10 * s);
+				graphics.text(f, "Version", ix, iy, CelestialWidget.withAlpha(0xFF999999, a), true);
+				String ver = Celestial.VERSION.startsWith("v") ? Celestial.VERSION : "v" + Celestial.VERSION;
+				graphics.text(f, ver, rightX + leftW - f.width(ver) - (int) (10 * s), iy,
+					CelestialWidget.withAlpha(0xFFFFFFFF, a), true);
+				iy += (int) (18 * s);
+				graphics.text(f, "Build Date", ix, iy, CelestialWidget.withAlpha(0xFF999999, a), true);
+				graphics.text(f, Celestial.BUILD_DATE, rightX + leftW - f.width(Celestial.BUILD_DATE) - (int) (10 * s), iy,
+					CelestialWidget.withAlpha(0xFFFFFFFF, a), true);
+				iy += (int) (18 * s);
+				int nh = (int) (26 * s);
+				int ny = cardY + cardH - nh - (int) (8 * s);
+				if (iy + 10 <= ny) {
+					graphics.text(f, "Developer", ix, iy, CelestialWidget.withAlpha(0xFF999999, a), true);
+					graphics.text(f, Celestial.DEVELOPER, rightX + leftW - f.width(Celestial.DEVELOPER) - (int) (10 * s), iy,
+						CelestialWidget.withAlpha(0xFFFFFFFF, a), true);
+				}
+				// Footer note.
+				graphics.fill(rightX + (int) (6 * s), ny, rightX + leftW - (int) (6 * s), ny + nh,
+					CelestialWidget.withAlpha(Theme.current.accent & 0x00FFFFFF | 0x2A000000, a));
+				graphics.outline(rightX + (int) (6 * s), ny, rightX + leftW - (int) (6 * s), ny + nh,
+					CelestialWidget.withAlpha(Theme.current.accent & 0x00FFFFFF | 0x55000000, a));
+				drawSparkle(graphics, rightX + (int) (18 * s), ny + nh / 2, (int) (5 * s), a);
+				graphics.text(f, "Enjoy your time in Minecraft!",
+					rightX + (int) (30 * s), ny + (nh - 8) / 2,
+					CelestialWidget.withAlpha(0xFFFFFFFF, a), true);
 				break;
 			}
 			case ABOUT: {
-				int tx = cx + (int) (20 * s);
-				int ty = y + (int) (64 * s);
+				int tx = cx + pad;
+				int ty = y + (int) (60 * s);
 				String[] lines = {
 					"Celestial Client " + Celestial.VERSION,
 					"Build " + Celestial.BUILD_DATE + " by " + Celestial.DEVELOPER,
 					"",
 				};
 				for (String line : lines) {
-					graphics.text(this.font, line, tx, ty, CelestialWidget.withAlpha(0xFFCCCCCC, a), true);
+					graphics.text(f, line, tx, ty, CelestialWidget.withAlpha(0xFFCCCCCC, a), true);
 					ty += (int) (16 * s);
 				}
 				String[] features = {
-					"9 modules across Render, Movement and Player,",
-					"live themes, profiles, FPS/Ping HUD,",
+					"12 modules across Render, Movement and Player,",
+					"live themes, profiles, FPS/Ping/Coords HUD,",
 					"and an ESC menu that respects singleplayer pause."
 				};
 				for (String line : features) {
-					graphics.text(this.font, line, tx, ty, CelestialWidget.withAlpha(0xFF999999, a), true);
+					graphics.text(f, line, tx, ty, CelestialWidget.withAlpha(0xFF999999, a), true);
 					ty += (int) (16 * s);
 				}
 				break;
 			}
 			case SETTINGS: {
-				int tx = cx + (int) (20 * s);
+				int tx = cx + pad;
 				int ty = winY() + winH() - (int) (52 * s);
 				String extra = keyName();
-				graphics.text(this.font, "GUI Key: ESC (fixed)" + (extra.isEmpty() ? "" : " + " + extra), tx, ty,
+				graphics.text(f, "GUI Key: ESC (fixed)" + (extra.isEmpty() ? "" : " + " + extra), tx, ty,
 					CelestialWidget.withAlpha(0xFFAAAAAA, a), true);
-				graphics.text(this.font, "Extra key rebindable in Options > Controls > Celestial", tx,
+				graphics.text(f, "Extra key rebindable in Options > Controls > Celestial", tx,
 					ty + (int) (14 * s), CelestialWidget.withAlpha(0xFF777777, a), true);
 				break;
 			}
 			case THEMES: {
-				int tx = cx + (int) (20 * s);
-				int ty = y + (int) (64 * s);
-				graphics.text(this.font, "Preset", tx, ty - (int) (16 * s),
+				int tx = cx + pad;
+				int ty = y + (int) (60 * s);
+				graphics.text(f, "Preset", tx, ty - (int) (14 * s),
 					CelestialWidget.withAlpha(0xFFAAAAAA, a), true);
 				break;
 			}
 			default:
 				break;
 		}
+	}
+
+	private String pingText(Minecraft mc) {
+		try {
+			if (mc != null && mc.getConnection() != null && mc.player != null) {
+				var info = mc.getConnection().getPlayerInfo(mc.getGameProfile().id());
+				if (info != null) {
+					return info.getLatency() + "ms";
+				}
+			}
+		} catch (Exception ignored) {
+		}
+		return "--";
 	}
 
 	private String keyName() {
@@ -802,8 +1093,13 @@ public class CelestialGui extends Screen {
 				g.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(),
 					withAlpha(0x22FFFFFF, a));
 			}
-			text(g, target.label, getX() + 12, getY() + 9,
-				withAlpha(selected ? accent() : 0xFFBBBBBB, a));
+			if (selected) {
+				text(g, "◆ " + target.label, getX() + 10, getY() + 8,
+					withAlpha(accent(), a));
+			} else {
+				text(g, target.label, getX() + 12, getY() + 8,
+					withAlpha(0xFFBBBBBB, a));
+			}
 		}
 
 		@Override
@@ -844,7 +1140,7 @@ public class CelestialGui extends Screen {
 			g.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), withAlpha(base, a));
 			int border = danger ? 0xFFAA4444 : (isHovered() || primary ? accent() : (accent() & 0x00FFFFFF | 0x55000000));
 			g.outline(getX(), getY(), getX() + getWidth(), getY() + getHeight(), withAlpha(border, a));
-			centeredText(g, getMessage().getString(), getX() + getWidth() / 2, getY() + 7,
+			centeredText(g, getMessage().getString(), getX() + getWidth() / 2, getY() + 6,
 				withAlpha(danger ? 0xFFFF8888 : 0xFFFFFFFF, a));
 		}
 
@@ -889,7 +1185,7 @@ public class CelestialGui extends Screen {
 				g.fill(getX(), getY() + getHeight() - 2, getX() + getWidth(), getY() + getHeight(),
 					withAlpha(accent(), anim()));
 			}
-			centeredText(g, category.getLabel(), getX() + getWidth() / 2, getY() + 7,
+			centeredText(g, category.getLabel(), getX() + getWidth() / 2, getY() + 6,
 				withAlpha(selected ? accent() : 0xFFBBBBBB, anim()));
 		}
 
@@ -897,7 +1193,9 @@ public class CelestialGui extends Screen {
 		protected void handleClick(MouseButtonEvent event) {
 			if (current != null) {
 				current.filter = category;
+				current.scroll = 0;
 				current.rebuildModuleRows();
+				current.layoutNow();
 			}
 		}
 	}
@@ -916,7 +1214,7 @@ public class CelestialGui extends Screen {
 				g.fill(getX(), getY() + getHeight() - 2, getX() + getWidth(), getY() + getHeight(),
 					withAlpha(accent(), anim()));
 			}
-			centeredText(g, "All", getX() + getWidth() / 2, getY() + 7,
+			centeredText(g, "All", getX() + getWidth() / 2, getY() + 6,
 				withAlpha(selected ? accent() : 0xFFBBBBBB, anim()));
 		}
 
@@ -924,17 +1222,46 @@ public class CelestialGui extends Screen {
 		protected void handleClick(MouseButtonEvent event) {
 			if (current != null) {
 				current.filter = null;
+				current.scroll = 0;
 				current.rebuildModuleRows();
+				current.layoutNow();
 			}
 		}
 	}
 
-	private static class QuickPill extends CelestialWidget {
+	/** Small list scroller (mouse wheel over the list also works). */
+	private static class ScrollButton extends CelestialWidget {
+		final boolean up;
+
+		ScrollButton(boolean up) {
+			super(0, 0, 10, 10, Component.literal(up ? "^" : "v"));
+			this.up = up;
+		}
+
+		@Override
+		protected void drawWidget(GuiGraphicsExtractor g, int mx, int my, float pt) {
+			float a = anim();
+			panel(g, getX(), getY(), getWidth(), getHeight(), isHovered());
+			centeredText(g, up ? "^" : "v", getX() + getWidth() / 2, getY() + 5,
+				withAlpha(0xFFFFFFFF, a));
+		}
+
+		@Override
+		protected void handleClick(MouseButtonEvent event) {
+			if (current != null) {
+				current.scroll = current.clampScroll(current.scroll + (up ? -80 : 80));
+				current.layoutNow();
+			}
+		}
+	}
+
+	/** Compact name + toggle pill row used in the Home "Quick Toggles" card. */
+	private static class HomeToggleRow extends CelestialWidget {
 		private final Module module;
 		private boolean lastState;
 		private long lastChange;
 
-		QuickPill(Module module) {
+		HomeToggleRow(Module module) {
 			super(0, 0, 10, 10, Component.literal(module.getName()));
 			this.module = module;
 			this.lastState = module.isEnabled();
@@ -949,16 +1276,17 @@ public class CelestialGui extends Screen {
 				lastChange = System.currentTimeMillis();
 			}
 			float a = anim();
-			panel(g, getX(), getY(), getWidth(), getHeight(), isHovered());
-			text(g, module.getName(), getX() + 8, getY() + 6, withAlpha(0xFFFFFFFF, a));
-			drawPill(g, getX() + getWidth() - 46, getY() + 8, 38, 14, on, animT());
-		}
-
-		private float animT() {
-			if (!Celestial.settings.animations) {
-				return 1.0f;
+			if (isHovered()) {
+				g.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(),
+					withAlpha(0x18FFFFFF, a));
 			}
-			return Math.max(0.0f, Math.min(1.0f, (System.currentTimeMillis() - lastChange) / 120.0f));
+			text(g, module.getName(), getX() + 2, getY() + (getHeight() - 8) / 2, withAlpha(0xFFFFFFFF, a));
+			float t = Celestial.settings.animations
+				? Math.max(0.0f, Math.min(1.0f, (System.currentTimeMillis() - lastChange) / 120.0f))
+				: 1.0f;
+			int pw = 34;
+			int ph = 13;
+			drawPill(g, getX() + getWidth() - pw, getY() + (getHeight() - ph) / 2, pw, ph, on, t);
 		}
 
 		@Override
@@ -989,9 +1317,9 @@ public class CelestialGui extends Screen {
 			float a = anim();
 			panel(g, getX(), getY(), getWidth(), getHeight(), isHovered());
 			int tx = getX() + 10;
-			text(g, module.getName(), tx, getY() + 5, withAlpha(on ? accent() : 0xFFFFFFFF, a));
+			text(g, module.getName(), tx, getY() + 6, withAlpha(on ? accent() : 0xFFFFFFFF, a));
 			String desc = module.getDescription() + "  [" + keyLabel(module) + "]";
-			text(g, desc, tx, getY() + 18, withAlpha(0xFF888888, a));
+			text(g, desc, tx, getY() + getHeight() - 16, withAlpha(0xFF888888, a));
 			float t = Celestial.settings.animations
 				? Math.max(0.0f, Math.min(1.0f, (System.currentTimeMillis() - lastChange) / 120.0f))
 				: 1.0f;
@@ -1045,11 +1373,11 @@ public class CelestialGui extends Screen {
 			}
 			float a = anim();
 			panel(g, getX(), getY(), getWidth(), getHeight(), isHovered());
-			text(g, label, getX() + 10, getY() + 11, withAlpha(0xFFFFFFFF, a));
+			text(g, label, getX() + 10, getY() + 10, withAlpha(0xFFFFFFFF, a));
 			float t = Celestial.settings.animations
 				? Math.max(0.0f, Math.min(1.0f, (System.currentTimeMillis() - lastChange) / 120.0f))
 				: 1.0f;
-			drawPill(g, getX() + getWidth() - 52, getY() + 9, 42, 14, on, t);
+			drawPill(g, getX() + getWidth() - 52, getY() + 8, 42, 14, on, t);
 		}
 
 		@Override
@@ -1080,7 +1408,7 @@ public class CelestialGui extends Screen {
 		protected void drawWidget(GuiGraphicsExtractor g, int mx, int my, float pt) {
 			float a = anim();
 			panel(g, getX(), getY(), getWidth(), getHeight(), isHovered());
-			text(g, label, getX() + 10, getY() + 11, withAlpha(0xFFFFFFFF, a));
+			text(g, label, getX() + 10, getY() + 10, withAlpha(0xFFFFFFFF, a));
 			int right = getX() + getWidth() - 8;
 			int plusX = right - 30;
 			int minusX = right - 104;
@@ -1088,9 +1416,9 @@ public class CelestialGui extends Screen {
 				withAlpha(accent() & 0x00FFFFFF | 0x33000000, a));
 			g.fill(minusX, getY() + 6, minusX + 30, getY() + getHeight() - 6,
 				withAlpha(0x22FFFFFF, a));
-			text(g, "+", plusX + 12, getY() + 10, withAlpha(0xFFFFFFFF, a));
-			text(g, "-", minusX + 12, getY() + 10, withAlpha(0xFFFFFFFF, a));
-			centeredText(g, text.get(), right - 52, getY() + 11, withAlpha(accent(), a));
+			text(g, "+", plusX + 12, getY() + 9, withAlpha(0xFFFFFFFF, a));
+			text(g, "-", minusX + 12, getY() + 9, withAlpha(0xFFFFFFFF, a));
+			centeredText(g, text.get(), right - 52, getY() + 10, withAlpha(accent(), a));
 		}
 
 		@Override
@@ -1120,11 +1448,11 @@ public class CelestialGui extends Screen {
 			float a = anim();
 			panel(g, getX(), getY(), getWidth(), getHeight(), isHovered() || selected);
 			int preview = getX() + 10;
-			g.fill(preview, getY() + 8, preview + 14, getY() + 22, withAlpha(theme.accent | 0xFF000000, a));
-			g.outline(preview, getY() + 8, preview + 14, getY() + 22, withAlpha(0x88FFFFFF, a));
-			text(g, theme.label, preview + 22, getY() + 11, withAlpha(selected ? accent() : 0xFFFFFFFF, a));
+			g.fill(preview, getY() + 7, preview + 14, getY() + 21, withAlpha(theme.accent | 0xFF000000, a));
+			g.outline(preview, getY() + 7, preview + 14, getY() + 21, withAlpha(0x88FFFFFF, a));
+			text(g, theme.label, preview + 22, getY() + 10, withAlpha(selected ? accent() : 0xFFFFFFFF, a));
 			if (selected) {
-				text(g, "Active", getX() + getWidth() - 50, getY() + 11, withAlpha(accent(), a));
+				text(g, "Active", getX() + getWidth() - 50, getY() + 10, withAlpha(accent(), a));
 			}
 		}
 
@@ -1177,7 +1505,7 @@ public class CelestialGui extends Screen {
 				g.fill(getX(), getY(), getX() + 3, getY() + getHeight(), withAlpha(accent(), anim()));
 			}
 			String label = name + (active ? "  \u25CF" : "");
-			text(g, label, getX() + 10, getY() + 10, withAlpha(active ? accent() : 0xFFFFFFFF, anim()));
+			text(g, label, getX() + 10, getY() + 9, withAlpha(active ? accent() : 0xFFFFFFFF, anim()));
 		}
 
 		@Override

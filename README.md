@@ -40,7 +40,7 @@ Every Mojang-mapping name used here was verified against the real 26.3
 - Extra GUI hotkey: unbound by default, set it in Options > Controls > Celestial.
 - Modules (all rebindable in Controls): XRay (X), FullBright (P),
   EntityESP (J), AntiAFK (K), Fly (G), Speed (V), Sprint (R), NoFall (B),
-  Step (M).
+  Step (M), Zoom (C), FPSBoost (O), FastPlace (F).
 - Settings, themes, and profiles apply instantly, no restart needed.
 - Config lives in `config/celestial/` (settings + `profiles/*.json`).
 

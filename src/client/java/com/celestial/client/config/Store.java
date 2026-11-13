@@ -51,6 +51,7 @@ public final class Store {
 					settings.animations = loaded.animations;
 					settings.showFps = loaded.showFps;
 					settings.showPing = loaded.showPing;
+					settings.showCoords = loaded.showCoords;
 					settings.theme = loaded.theme != null ? loaded.theme : "pink";
 					settings.customColor = loaded.customColor;
 					settings.activeProfile = loaded.activeProfile != null ? loaded.activeProfile : "Default";

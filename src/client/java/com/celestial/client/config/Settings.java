@@ -11,6 +11,7 @@ public class Settings {
 	public boolean animations = true;
 	public boolean showFps = true;
 	public boolean showPing = true;
+	public boolean showCoords = true;
 	public String theme = "pink";
 	public int customColor = 0xFF69B4;
 	public String activeProfile = "Default";

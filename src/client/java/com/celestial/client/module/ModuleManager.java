@@ -6,13 +6,16 @@ import java.util.List;
 
 import com.celestial.client.module.modules.AntiAfkModule;
 import com.celestial.client.module.modules.EspModule;
+import com.celestial.client.module.modules.FastPlaceModule;
 import com.celestial.client.module.modules.FlyModule;
+import com.celestial.client.module.modules.FpsBoostModule;
 import com.celestial.client.module.modules.FullBrightModule;
 import com.celestial.client.module.modules.NoFallModule;
 import com.celestial.client.module.modules.SpeedModule;
 import com.celestial.client.module.modules.SprintModule;
 import com.celestial.client.module.modules.StepModule;
 import com.celestial.client.module.modules.XRayModule;
+import com.celestial.client.module.modules.ZoomModule;
 import net.minecraft.client.Minecraft;
 
 public final class ModuleManager {
@@ -32,6 +35,9 @@ public final class ModuleManager {
 		MODULES.add(new NoFallModule());
 		MODULES.add(new StepModule());
 		MODULES.add(new EspModule());
+		MODULES.add(new ZoomModule());
+		MODULES.add(new FpsBoostModule());
+		MODULES.add(new FastPlaceModule());
 	}
 
 	public static List<Module> getModules() {

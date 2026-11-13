@@ -55,7 +55,8 @@ public class CelestialClient implements ClientModInitializer {
 			}
 			boolean showFps = Celestial.settings.showFps;
 			boolean showPing = Celestial.settings.showPing;
-			if (!showFps && !showPing) {
+			boolean showCoords = Celestial.settings.showCoords;
+			if (!showFps && !showPing && !showCoords) {
 				return;
 			}
 			StringBuilder text = new StringBuilder();
@@ -74,6 +75,12 @@ public class CelestialClient implements ClientModInitializer {
 			graphics.fill(right - width - 8, 3, right + 2, 17, 0x80000000);
 			graphics.fill(right - width - 8, 16, right + 2, 17, Theme.current.accent);
 			graphics.text(mc.font, line, right - width - 4, 6, Theme.current.accent, true);
+			if (showCoords && mc.player != null) {
+				String pos = "XYZ: " + (int) Math.floor(mc.player.getX()) + " / " + (int) Math.floor(mc.player.getY()) + " / " + (int) Math.floor(mc.player.getZ());
+				int width2 = mc.font.width(pos);
+				graphics.fill(right - width2 - 8, 19, right + 2, 33, 0x80000000);
+				graphics.text(mc.font, pos, right - width2 - 4, 22, 0xFFFFFFFF, true);
+			}
 		});
 	}
 
