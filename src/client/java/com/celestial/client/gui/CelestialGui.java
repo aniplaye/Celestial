@@ -1188,15 +1188,15 @@ public class CelestialGui extends Screen {
 
 	/** Shared toggle-pill drawing. */
 	private static void drawPill(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean on, float t) {
-		float a = anim();
-		int track = on ? accent() : 0xFF3A3A40;
-		g.fill(x, y, x + w, y + h, withAlpha(track & 0x00FFFFFF | (on ? 0xCC000000 : 0xFF000000), a));
-		g.outline(x, y, x + w, y + h, withAlpha(on ? accent() : 0xFF55555F, a));
+		float a = CelestialWidget.anim();
+		int track = on ? CelestialWidget.accent() : 0xFF3A3A40;
+		g.fill(x, y, x + w, y + h, CelestialWidget.withAlpha(track & 0x00FFFFFF | (on ? 0xCC000000 : 0xFF000000), a));
+		g.outline(x, y, x + w, y + h, CelestialWidget.withAlpha(on ? CelestialWidget.accent() : 0xFF55555F, a));
 		int knob = h - 4;
 		int travel = w - knob - 4;
 		int from = on ? x + 2 : x + 2 + travel;
 		int to = on ? x + 2 + travel : x + 2;
 		int kx = (int) (from + (to - from) * t);
-		g.fill(kx, y + 2, kx + knob, y + 2 + knob, withAlpha(0xFFFFFFFF, a));
+		g.fill(kx, y + 2, kx + knob, y + 2 + knob, CelestialWidget.withAlpha(0xFFFFFFFF, a));
 	}
 }

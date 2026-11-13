@@ -80,7 +80,7 @@ public class CelestialClient implements ClientModInitializer {
 	private static String pingText(Minecraft mc) {
 		try {
 			if (mc.getConnection() != null && mc.player != null) {
-				PlayerInfo info = mc.getConnection().getPlayerInfo(mc.getGameProfile().getId());
+				PlayerInfo info = mc.getConnection().getPlayerInfo(mc.getGameProfile().id());
 				if (info != null) {
 					return info.getLatency() + "ms";
 				}
