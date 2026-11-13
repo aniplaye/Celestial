@@ -1,7 +1,7 @@
 package com.celestial.client.module.modules;
 
 import com.celestial.client.KeyCodes;
-import com.celestial.client.mixin.MinecraftAccessor;
+import com.celestial.mixin.MinecraftAccessor;
 import com.celestial.client.module.Category;
 import com.celestial.client.module.Module;
 import net.minecraft.client.Minecraft;
