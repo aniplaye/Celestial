@@ -36,6 +36,54 @@ public abstract class CelestialWidget extends AbstractWidget {
 		defaultButtonNarrationText(output);
 	}
 
+	@Override
+	public void setX(int x) {
+		super.setX(x);
+		syncRect();
+	}
+
+	@Override
+	public void setY(int y) {
+		super.setY(y);
+		syncRect();
+	}
+
+	@Override
+	public void setWidth(int width) {
+		super.setWidth(width);
+		syncRect();
+	}
+
+	@Override
+	public void setHeight(int height) {
+		super.setHeight(height);
+		syncRect();
+	}
+
+	@Override
+	public void setSize(int width, int height) {
+		super.setSize(width, height);
+		syncRect();
+	}
+
+	private void syncRect() {
+		try {
+			setRectangle(getX(), getY(), getWidth(), getHeight());
+		} catch (Exception ignored) {
+		}
+	}
+
+	/**
+	 * Click/hover hit-test straight from the live widget bounds. Vanilla's
+	 * cached ScreenRectangle can go stale after programmatic moves, which
+	 * made every button look alive but never fire.
+	 */
+	@Override
+	public boolean isMouseOver(double mouseX, double mouseY) {
+		return mouseX >= getX() && mouseX <= getX() + getWidth()
+			&& mouseY >= getY() && mouseY <= getY() + getHeight();
+	}
+
 	// ---------- shared drawing helpers ----------
 
 	protected static float anim() {

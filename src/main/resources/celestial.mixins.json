@@ -3,7 +3,6 @@
 	"package": "com.celestial.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"PauseMenuMixin",
 		"TitleScreenMixin",
 		"MinecraftAccessor",
 		"XRayMixin",

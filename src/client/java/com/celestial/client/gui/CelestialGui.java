@@ -15,16 +15,17 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /**
- * Celestial in-game menu (press ESC). Glassmorphism layout:
- * left sidebar navigation, content cards on the right, FPS/Ping pill
- * top-right, hero banner on Home.
+ * Celestial in-game menu. Toggled with Right Shift (rebindable under
+ * Options > Controls > Celestial). ESC is left fully vanilla.
+ * Glassmorphism layout: left sidebar navigation, content cards on the
+ * right, FPS/Ping pill top-right, hero banner on Home.
  *
  * Widgets are built in init() (NOT added()) because vanilla clears all
  * widgets during screen setup — building earlier meant everything was
@@ -133,6 +134,19 @@ public class CelestialGui extends Screen {
 	@Override
 	public boolean shouldCloseOnEsc() {
 		return true;
+	}
+
+	/** Right Shift also closes the menu (tick handler covers opening). */
+	@Override
+	public boolean keyPressed(KeyEvent event) {
+		if (com.celestial.client.CelestialClient.isGuiOpenKey(event)) {
+			Minecraft mc = Minecraft.getInstance();
+			if (mc != null) {
+				mc.setScreenAndShow(null);
+			}
+			return true;
+		}
+		return super.keyPressed(event);
 	}
 
 	/** Scroll the module list. No @Override: keeps compiling even if the
@@ -905,7 +919,7 @@ public class CelestialGui extends Screen {
 			sub, cx + (int) (18 * s), y + (int) (30 * s),
 			CelestialWidget.withAlpha(0xFF999999, a), true);
 		graphics.text(hf,
-			"ESC to close", x + w - hf.width("ESC to close") - (int) (14 * s),
+			"Right Shift to close", x + w - hf.width("Right Shift to close") - (int) (14 * s),
 			y + h - (int) (20 * s), CelestialWidget.withAlpha(0xFF888888, a), true);
 	}
 
@@ -1034,9 +1048,9 @@ public class CelestialGui extends Screen {
 				int tx = cx + pad;
 				int ty = winY() + winH() - (int) (52 * s);
 				String extra = keyName();
-				graphics.text(f, "GUI Key: ESC (fixed)" + (extra.isEmpty() ? "" : " + " + extra), tx, ty,
+				graphics.text(f, "Menu Key: " + (extra.isEmpty() ? "Right Shift" : extra), tx, ty,
 					CelestialWidget.withAlpha(0xFFAAAAAA, a), true);
-				graphics.text(f, "Extra key rebindable in Options > Controls > Celestial", tx,
+				graphics.text(f, "Rebindable in Options > Controls > Celestial", tx,
 					ty + (int) (14 * s), CelestialWidget.withAlpha(0xFF777777, a), true);
 				break;
 			}

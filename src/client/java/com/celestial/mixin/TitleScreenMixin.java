@@ -45,7 +45,7 @@ public class TitleScreenMixin {
 		graphics.fill(8, 26, 8 + pw, 28, accent);
 		graphics.text(font, pill, 18, 13, 0xFFFFFFFF, true);
 
-		String left = "Celestial Client for Minecraft 26.3 (Fabric) - press ESC in-game for the menu";
+		String left = "Celestial Client for Minecraft 26.3 (Fabric) - press Right Shift in-game for the menu";
 		String right = "Build " + Celestial.BUILD_DATE;
 		int w = mc.getWindow().getGuiScaledWidth();
 		int h = mc.getWindow().getGuiScaledHeight();

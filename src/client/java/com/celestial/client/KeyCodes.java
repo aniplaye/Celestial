@@ -21,6 +21,7 @@ public final class KeyCodes {
 	public static final int KEY_O = InputConstants.KEY_O;
 	public static final int KEY_P = InputConstants.KEY_P;
 	public static final int KEY_R = InputConstants.KEY_R;
+	public static final int KEY_RSHIFT = InputConstants.KEY_RSHIFT;
 	public static final int KEY_V = InputConstants.KEY_V;
 	public static final int KEY_X = InputConstants.KEY_X;
 }

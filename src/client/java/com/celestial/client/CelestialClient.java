@@ -10,20 +10,30 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.resources.Identifier;
 
 public class CelestialClient implements ClientModInitializer {
-	private static KeyMapping extraGuiKey;
+	private static KeyMapping guiKey;
 
 	public static String extraKeyName() {
 		try {
-			if (extraGuiKey == null || extraGuiKey.isUnbound()) {
+			if (guiKey == null || guiKey.isUnbound()) {
 				return "NONE";
 			}
-			return extraGuiKey.getTranslatedKeyMessage().getString();
+			return guiKey.getTranslatedKeyMessage().getString();
 		} catch (Exception e) {
 			return "?";
+		}
+	}
+
+	/** True when the pressed key matches the menu toggle bind (Right Shift by default). */
+	public static boolean isGuiOpenKey(KeyEvent event) {
+		try {
+			return guiKey != null && event != null && guiKey.matches(event);
+		} catch (Exception e) {
+			return false;
 		}
 	}
 
@@ -31,19 +41,24 @@ public class CelestialClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		Celestial.init();
 
-		// Optional extra opener (ESC always works via mixin). Unbound by default.
-		extraGuiKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
-			"key.celestial.gui_extra",
+		// Menu toggle. Right Shift by default, rebindable under
+		// Options > Controls > Celestial. ESC is left fully vanilla.
+		guiKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+			"key.celestial.gui",
 			InputConstants.Type.KEYBOARD,
-			-1,
+			KeyCodes.KEY_RSHIFT,
 			KeyMapping.Category.MISC));
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (client.player == null || client.level == null) {
 				return;
 			}
-			while (extraGuiKey.consumeClick()) {
-				CelestialGui.open(client);
+			while (guiKey.consumeClick()) {
+				if (client.screen instanceof CelestialGui) {
+					client.setScreenAndShow(null);
+				} else if (client.screen == null) {
+					client.setScreenAndShow(new CelestialGui());
+				}
 			}
 			ModuleManager.tick(client);
 		});

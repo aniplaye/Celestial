@@ -1,8 +1,8 @@
 # Celestial Client — Fabric 26.3
 
 A premium pink-accented glassmorphism utility client for **Minecraft 26.3**
-(Java Edition). ESC opens the Celestial interface (replaces the vanilla pause
-menu); 9 modules; live themes; profiles; FPS/Ping HUD.
+(Java Edition). Right Shift toggles the Celestial interface (ESC stays fully
+vanilla); 12 modules; live themes; profiles; FPS/Ping/Coords HUD.
 
 Every Mojang-mapping name used here was verified against the real 26.3
 `client.jar` (MojMap, no Yarn): `Minecraft.player/level/options/font`,
@@ -11,7 +11,7 @@ Every Mojang-mapping name used here was verified against the real 26.3
 `EditBox`, `OptionInstance gamma/autoJump`, `Abilities`,
 `ModelBlockRenderer.shouldRenderFace` (XRay),
 `LevelExtractor.allChanged` (chunk refresh, same as vanilla F3+A),
-`Minecraft.pauseGame` (ESC hook), and more.
+`MinecraftAccessor rightClickDelay` (FastPlace), and more.
 
 ## Requirements
 
