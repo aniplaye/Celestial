@@ -54,9 +54,12 @@ public class CelestialClient implements ClientModInitializer {
 				return;
 			}
 			while (guiKey.consumeClick()) {
-				if (client.screen instanceof CelestialGui) {
-					client.setScreenAndShow(null);
-				} else if (client.screen == null) {
+				// Open-only: closing is handled inside CelestialGui.keyPressed
+				// (Right Shift / ESC), which is focus-aware. This avoids
+				// reading Minecraft's private current-screen field (26.3
+				// no longer exposes it) and avoids double-toggle races.
+				// Never yank the user out of chat typing either.
+				if (!CelestialGui.isOpen() && !CelestialGui.justClosed() && !isChatFocused(client)) {
 					client.setScreenAndShow(new CelestialGui());
 				}
 			}
@@ -97,6 +100,14 @@ public class CelestialClient implements ClientModInitializer {
 				graphics.text(mc.font, pos, right - width2 - 4, 22, 0xFFFFFFFF, true);
 			}
 		});
+	}
+
+	private static boolean isChatFocused(Minecraft mc) {
+		try {
+			return mc.gui != null && mc.gui.getChat() != null && mc.gui.getChat().isChatFocused();
+		} catch (Exception e) {
+			return false;
+		}
 	}
 
 	private static String pingText(Minecraft mc) {

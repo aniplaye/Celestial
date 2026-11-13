@@ -50,6 +50,7 @@ public class CelestialGui extends Screen {
 
 	private static boolean open;
 	private static long openStamp;
+	private static long closedStamp;
 	private static CelestialGui current;
 
 	private Tab tab = Tab.HOME;
@@ -72,6 +73,15 @@ public class CelestialGui extends Screen {
 
 	public static boolean isOpen() {
 		return open;
+	}
+
+	/**
+	 * True right after the menu closed. The tick handler checks this so a
+	 * still-queued Right Shift press that just closed the menu can't
+	 * instantly reopen it in the same tick.
+	 */
+	public static boolean justClosed() {
+		return System.currentTimeMillis() - closedStamp < 400;
 	}
 
 	public static void open(Minecraft mc) {
@@ -103,6 +113,7 @@ public class CelestialGui extends Screen {
 	public void removed() {
 		open = false;
 		current = null;
+		closedStamp = System.currentTimeMillis();
 		Store.save(Celestial.settings);
 		ProfileManager.save(Celestial.settings.activeProfile);
 	}
@@ -140,6 +151,10 @@ public class CelestialGui extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (com.celestial.client.CelestialClient.isGuiOpenKey(event)) {
+			// Never steal Shift while typing in a text field.
+			if (isAnyBoxFocused()) {
+				return super.keyPressed(event);
+			}
 			Minecraft mc = Minecraft.getInstance();
 			if (mc != null) {
 				mc.setScreenAndShow(null);
@@ -147,6 +162,17 @@ public class CelestialGui extends Screen {
 			return true;
 		}
 		return super.keyPressed(event);
+	}
+
+	private boolean isAnyBoxFocused() {
+		try {
+			return (searchBox != null && searchBox.isFocused())
+				|| (profileBox != null && profileBox.isFocused())
+				|| (renameBox != null && renameBox.isFocused())
+				|| (hexBox != null && hexBox.isFocused());
+		} catch (Exception e) {
+			return false;
+		}
 	}
 
 	/** Scroll the module list. No @Override: keeps compiling even if the
