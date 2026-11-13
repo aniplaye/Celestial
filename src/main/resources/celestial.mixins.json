@@ -5,6 +5,7 @@
 	"client": [
 		"PauseMenuMixin",
 		"TitleScreenMixin",
+		"MinecraftAccessor",
 		"XRayMixin",
 		"EntityAccessor"
 	],
