@@ -3,6 +3,7 @@ package com.celestial.client.module;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 
 import com.celestial.client.module.modules.AntiAfkModule;
 import com.celestial.client.module.modules.CoordsModule;
@@ -30,28 +31,37 @@ public final class ModuleManager {
 
 	public static void init() {
 		MODULES.clear();
-		MODULES.add(new FpsModule());
-		MODULES.add(new PingModule());
-		MODULES.add(new CpsModule());
-		MODULES.add(new CoordsModule());
-		MODULES.add(new XRayModule());
-		MODULES.add(new FullBrightModule());
-		MODULES.add(new AntiAfkModule());
-		MODULES.add(new FlyModule());
-		MODULES.add(new SpeedModule());
-		MODULES.add(new SprintModule());
-		MODULES.add(new NoFallModule());
-		MODULES.add(new StepModule());
-		MODULES.add(new EspModule());
-		MODULES.add(new ZoomModule());
-		MODULES.add(new FpsBoostModule());
-		MODULES.add(new FastPlaceModule());
+		add(CpsModule::new);
+		add(FpsModule::new);
+		add(PingModule::new);
+		add(CoordsModule::new);
+		add(XRayModule::new);
+		add(FullBrightModule::new);
+		add(AntiAfkModule::new);
+		add(FlyModule::new);
+		add(SpeedModule::new);
+		add(SprintModule::new);
+		add(NoFallModule::new);
+		add(StepModule::new);
+		add(EspModule::new);
+		add(ZoomModule::new);
+		add(FpsBoostModule::new);
+		add(FastPlaceModule::new);
 		// First run: keep the HUD the settings describe (migrates showFps/
 		// showPing/showCoords into the new counter modules). Returning players
 		// keep whatever their profile saved, since load() overrides these.
 		setInitial("fps", com.celestial.client.Celestial.settings.showFps);
 		setInitial("ping", com.celestial.client.Celestial.settings.showPing);
 		setInitial("coords", com.celestial.client.Celestial.settings.showCoords);
+	}
+
+	/** One broken module must never take down the whole menu. */
+	private static void add(Supplier<Module> factory) {
+		try {
+			MODULES.add(factory.get());
+		} catch (Exception e) {
+			System.out.println("[Celestial] skipping broken module: " + e);
+		}
 	}
 
 	private static void setInitial(String id, boolean value) {

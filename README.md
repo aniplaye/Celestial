@@ -37,7 +37,7 @@ Every Mojang-mapping name used here was verified against the real 26.3
 
 ## Use
 
-- **Right Shift** in a world opens Celestial (rebindable in Options > Controls > Celestial; ESC stays vanilla).
+- **ESC** in a world opens Celestial (replaces the pause menu; the menu has its own Disconnect button). **Right Shift** toggles it anywhere, rebindable in Options > Controls > Celestial.
 - Modules (all rebindable in Controls): FPS Counter (H), Ping Counter (N),
   CPS Counter (U), Coords (I), XRay (X), FullBright (P), EntityESP (J),
   AntiAFK (K), Fly (G), Speed (V), Sprint (R), NoFall (B), Step (M),
