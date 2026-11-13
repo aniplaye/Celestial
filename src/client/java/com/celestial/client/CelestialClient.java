@@ -110,7 +110,12 @@ public class CelestialClient implements ClientModInitializer {
 				y += 16;
 			}
 			if (showCps) {
-				String cps = "CPS: " + CpsModule.getLeftCps() + " | " + CpsModule.getRightCps();
+				String cps;
+				try {
+					cps = "CPS: " + CpsModule.getLeftCps() + " | " + CpsModule.getRightCps();
+				} catch (Exception ignored) {
+					cps = "CPS: --";
+				}
 				int widthCps = mc.font.width(cps);
 				graphics.fill(right - widthCps - 8, y, right + 2, y + 14, 0x80000000);
 				graphics.text(mc.font, cps, right - widthCps - 4, y + 3, 0xFFFFFFFF, true);
