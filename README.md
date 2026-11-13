@@ -2,7 +2,8 @@
 
 A premium pink-accented glassmorphism utility client for **Minecraft 26.3**
 (Java Edition). Right Shift toggles the Celestial interface (ESC stays fully
-vanilla); 12 modules; live themes; profiles; FPS/Ping/Coords HUD.
+vanilla); 16 modules across HUD, Visual, Gameplay and Interface;
+live themes; profiles; counter overlays.
 
 Every Mojang-mapping name used here was verified against the real 26.3
 `client.jar` (MojMap, no Yarn): `Minecraft.player/level/options/font`,
@@ -15,16 +16,17 @@ Every Mojang-mapping name used here was verified against the real 26.3
 
 ## Requirements
 
-- **JDK 25** (build + run). Gradle itself is included via `gradlew` / `gradlew.bat`, so you don't need to install Gradle.
-- Internet on first build (downloads Minecraft 26.3 + mappings + Gradle 9.8.2)
+- **JDK 25** (build + run) and **Gradle 9.8.2** for local builds —
+  or use the free GitHub cloud build (`GITHUB-WORKFLOW-no-wrapper-build.yml`,
+  no installs needed).
+- Internet on first build (downloads Minecraft 26.3 + mappings)
 
 ## Build
 
 1. Copy this whole `celestial` folder to your computer (e.g. Desktop), keeping the structure. Do NOT put it in `mods/`.
-2. In a terminal inside the folder:
-   - Windows: `gradlew.bat build`
-   - Mac/Linux: `./gradlew build`
+2. In a terminal inside the folder: `gradle build`
 3. The mod jar is at `build/libs/celestial-1.0.0.jar`.
+   (No Gradle install? Use the cloud-build workflow file instead.)
 
 ## Install in Minecraft
 
@@ -35,12 +37,11 @@ Every Mojang-mapping name used here was verified against the real 26.3
 
 ## Use
 
-- **ESC** in a world opens Celestial (replaces the pause menu; ESC again closes).
-  Singleplayer still pauses, multiplayer keeps running.
-- Extra GUI hotkey: unbound by default, set it in Options > Controls > Celestial.
-- Modules (all rebindable in Controls): XRay (X), FullBright (P),
-  EntityESP (J), AntiAFK (K), Fly (G), Speed (V), Sprint (R), NoFall (B),
-  Step (M), Zoom (C), FPSBoost (O), FastPlace (F).
+- **Right Shift** in a world opens Celestial (rebindable in Options > Controls > Celestial; ESC stays vanilla).
+- Modules (all rebindable in Controls): FPS Counter (H), Ping Counter (N),
+  CPS Counter (U), Coords (I), XRay (X), FullBright (P), EntityESP (J),
+  AntiAFK (K), Fly (G), Speed (V), Sprint (R), NoFall (B), Step (M),
+  Zoom (C), FPSBoost (O), FastPlace (F).
 - Settings, themes, and profiles apply instantly, no restart needed.
 - Config lives in `config/celestial/` (settings + `profiles/*.json`).
 
