@@ -294,6 +294,23 @@ public class CelestialGui extends Screen {
 	}
 
 	private void clearTab() {
+		// Explicit per-widget removal: in 26.3 clearWidgets() alone leaves
+		// stale widgets registered, so every tab switch piled the old tab's
+		// widgets on top — they kept rendering AND eating clicks.
+		for (CelestialWidget widget : new ArrayList<>(tabWidgets)) {
+			try {
+				this.removeWidget(widget);
+			} catch (Exception ignored) {
+			}
+		}
+		for (EditBox box : new EditBox[]{searchBox, profileBox, renameBox, hexBox}) {
+			if (box != null) {
+				try {
+					this.removeWidget(box);
+				} catch (Exception ignored) {
+				}
+			}
+		}
 		this.clearWidgets();
 		tabWidgets.clear();
 		moduleRows.clear();
@@ -872,10 +889,22 @@ public class CelestialGui extends Screen {
 		drawHudPill(graphics);
 		drawWindow(graphics);
 		drawContent(graphics);
-		for (Object child : this.children()) {
-			if (child instanceof Renderable renderable) {
-				renderable.extractRenderState(graphics, mouseX, mouseY, partialTick);
-			}
+		// Render only this tab's widgets. The vanilla child list can hold
+		// stale entries after tab switches, which must never be drawn.
+		for (CelestialWidget widget : tabWidgets) {
+			widget.extractRenderState(graphics, mouseX, mouseY, partialTick);
+		}
+		if (searchBox != null) {
+			searchBox.extractRenderState(graphics, mouseX, mouseY, partialTick);
+		}
+		if (profileBox != null) {
+			profileBox.extractRenderState(graphics, mouseX, mouseY, partialTick);
+		}
+		if (renameBox != null) {
+			renameBox.extractRenderState(graphics, mouseX, mouseY, partialTick);
+		}
+		if (hexBox != null) {
+			hexBox.extractRenderState(graphics, mouseX, mouseY, partialTick);
 		}
 	}
 
