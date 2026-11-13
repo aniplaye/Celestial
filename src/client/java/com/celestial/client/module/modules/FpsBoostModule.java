@@ -15,7 +15,7 @@ public class FpsBoostModule extends Module {
 	private double previousEntityDistance = 1.0;
 
 	public FpsBoostModule() {
-		super("fpsboost", "FPSBoost", "Trades visuals for frames: fast graphics, no clouds, fewer particles.", Category.PLAYER, KeyCodes.KEY_O);
+		super("fpsboost", "FPSBoost", "Trades visuals for frames: fast graphics, no clouds, fewer particles.", Category.INTERFACE, KeyCodes.KEY_O);
 	}
 
 	@Override

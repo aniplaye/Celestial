@@ -50,7 +50,7 @@ public class XRayModule extends Module {
 	}
 
 	public XRayModule() {
-		super("xray", "XRay", "See ores through walls.", Category.RENDER, KeyCodes.KEY_X);
+		super("xray", "XRay", "See ores through walls.", Category.VISUAL, KeyCodes.KEY_X);
 	}
 
 	/** Called from the render mixin for every meshed face. */

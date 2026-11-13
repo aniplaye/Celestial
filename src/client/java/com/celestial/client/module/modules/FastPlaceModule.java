@@ -8,7 +8,7 @@ import net.minecraft.client.Minecraft;
 
 public class FastPlaceModule extends Module {
 	public FastPlaceModule() {
-		super("fastplace", "FastPlace", "Remove the right-click placement delay.", Category.PLAYER, KeyCodes.KEY_F);
+		super("fastplace", "FastPlace", "Remove the right-click placement delay.", Category.GAMEPLAY, KeyCodes.KEY_F);
 	}
 
 	@Override

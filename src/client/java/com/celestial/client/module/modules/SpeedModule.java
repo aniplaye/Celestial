@@ -11,7 +11,7 @@ public class SpeedModule extends Module {
 	private static final double MULTIPLIER = 1.25;
 
 	public SpeedModule() {
-		super("speed", "Speed", "Move faster on the ground.", Category.MOVEMENT, KeyCodes.KEY_V);
+		super("speed", "Speed", "Move faster on the ground.", Category.GAMEPLAY, KeyCodes.KEY_V);
 	}
 
 	@Override

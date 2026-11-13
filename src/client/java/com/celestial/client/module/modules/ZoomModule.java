@@ -9,7 +9,7 @@ public class ZoomModule extends Module {
 	private int previousFov = 70;
 
 	public ZoomModule() {
-		super("zoom", "Zoom", "Narrow the field of view for a closer look.", Category.RENDER, KeyCodes.KEY_C);
+		super("zoom", "Zoom", "Narrow the field of view for a closer look.", Category.VISUAL, KeyCodes.KEY_C);
 	}
 
 	@Override

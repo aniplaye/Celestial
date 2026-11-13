@@ -7,7 +7,7 @@ import com.celestial.client.KeyCodes;
 
 public class SprintModule extends Module {
 	public SprintModule() {
-		super("sprint", "Sprint", "Always sprint while moving forward.", Category.MOVEMENT, KeyCodes.KEY_R);
+		super("sprint", "Sprint", "Always sprint while moving forward.", Category.GAMEPLAY, KeyCodes.KEY_R);
 	}
 
 	@Override

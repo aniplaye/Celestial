@@ -9,7 +9,7 @@ public class StepModule extends Module {
 	private boolean previousAutoJump;
 
 	public StepModule() {
-		super("step", "Step", "Step up blocks using auto-jump.", Category.MOVEMENT, KeyCodes.KEY_M);
+		super("step", "Step", "Step up blocks using auto-jump.", Category.GAMEPLAY, KeyCodes.KEY_M);
 	}
 
 	@Override

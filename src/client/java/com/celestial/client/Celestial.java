@@ -2,6 +2,7 @@ package com.celestial.client;
 
 import com.celestial.client.config.Settings;
 import com.celestial.client.config.Store;
+import com.celestial.client.module.Module;
 import com.celestial.client.module.ModuleManager;
 import com.celestial.client.profile.ProfileManager;
 
@@ -30,8 +31,26 @@ public final class Celestial {
 	}
 
 	public static void onModulesChanged() {
+		syncHudFlags();
 		if (!quiet) {
 			ProfileManager.save(settings.activeProfile);
+		}
+	}
+
+	/** Keeps the legacy showFps/showPing/showCoords flags (menu pill,
+	 *  Store file) in step with the counter modules that own the HUD now. */
+	private static void syncHudFlags() {
+		Module fps = ModuleManager.byId("fps");
+		if (fps != null) {
+			settings.showFps = fps.isEnabled();
+		}
+		Module ping = ModuleManager.byId("ping");
+		if (ping != null) {
+			settings.showPing = ping.isEnabled();
+		}
+		Module coords = ModuleManager.byId("coords");
+		if (coords != null) {
+			settings.showCoords = coords.isEnabled();
 		}
 	}
 

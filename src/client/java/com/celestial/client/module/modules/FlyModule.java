@@ -9,7 +9,7 @@ import com.celestial.client.KeyCodes;
 
 public class FlyModule extends Module {
 	public FlyModule() {
-		super("fly", "Fly", "Creative-style flight. Space up, Shift down.", Category.MOVEMENT, KeyCodes.KEY_G);
+		super("fly", "Fly", "Creative-style flight. Space up, Shift down.", Category.GAMEPLAY, KeyCodes.KEY_G);
 	}
 
 	@Override

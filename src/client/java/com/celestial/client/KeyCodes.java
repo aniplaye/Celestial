@@ -15,13 +15,17 @@ public final class KeyCodes {
 	public static final int KEY_C = InputConstants.KEY_C;
 	public static final int KEY_F = InputConstants.KEY_F;
 	public static final int KEY_G = InputConstants.KEY_G;
+	public static final int KEY_H = InputConstants.KEY_H;
+	public static final int KEY_I = InputConstants.KEY_I;
 	public static final int KEY_J = InputConstants.KEY_J;
 	public static final int KEY_K = InputConstants.KEY_K;
 	public static final int KEY_M = InputConstants.KEY_M;
+	public static final int KEY_N = InputConstants.KEY_N;
 	public static final int KEY_O = InputConstants.KEY_O;
 	public static final int KEY_P = InputConstants.KEY_P;
 	public static final int KEY_R = InputConstants.KEY_R;
 	public static final int KEY_RSHIFT = InputConstants.KEY_RSHIFT;
+	public static final int KEY_U = InputConstants.KEY_U;
 	public static final int KEY_V = InputConstants.KEY_V;
 	public static final int KEY_X = InputConstants.KEY_X;
 }

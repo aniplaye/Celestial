@@ -2,7 +2,9 @@ package com.celestial.client;
 
 import com.celestial.client.config.Theme;
 import com.celestial.client.gui.CelestialGui;
+import com.celestial.client.module.Module;
 import com.celestial.client.module.ModuleManager;
+import com.celestial.client.module.modules.CpsModule;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -80,10 +82,11 @@ public class CelestialClient implements ClientModInitializer {
 			if (mc.player == null || mc.level == null) {
 				return;
 			}
-			boolean showFps = Celestial.settings.showFps;
-			boolean showPing = Celestial.settings.showPing;
-			boolean showCoords = Celestial.settings.showCoords;
-			if (!showFps && !showPing && !showCoords) {
+			boolean showFps = isHudOn("fps");
+			boolean showPing = isHudOn("ping");
+			boolean showCps = isHudOn("cps");
+			boolean showCoords = isHudOn("coords");
+			if (!showFps && !showPing && !showCps && !showCoords) {
 				return;
 			}
 			StringBuilder text = new StringBuilder();
@@ -99,20 +102,39 @@ public class CelestialClient implements ClientModInitializer {
 			String line = text.toString();
 			int width = mc.font.width(line);
 			int right = mc.getWindow().getGuiScaledWidth() - 6;
-			graphics.fill(right - width - 8, 3, right + 2, 17, 0x80000000);
-			graphics.fill(right - width - 8, 16, right + 2, 17, Theme.current.accent);
-			graphics.text(mc.font, line, right - width - 4, 6, Theme.current.accent, true);
+			int y = 3;
+			if (!line.isEmpty()) {
+				graphics.fill(right - width - 8, y, right + 2, y + 14, 0x80000000);
+				graphics.fill(right - width - 8, y + 13, right + 2, y + 14, Theme.current.accent);
+				graphics.text(mc.font, line, right - width - 4, y + 3, Theme.current.accent, true);
+				y += 16;
+			}
+			if (showCps) {
+				String cps = "CPS: " + CpsModule.getLeftCps() + " | " + CpsModule.getRightCps();
+				int widthCps = mc.font.width(cps);
+				graphics.fill(right - widthCps - 8, y, right + 2, y + 14, 0x80000000);
+				graphics.text(mc.font, cps, right - widthCps - 4, y + 3, 0xFFFFFFFF, true);
+				y += 16;
+			}
 			if (showCoords && mc.player != null) {
 				String pos = "XYZ: " + (int) Math.floor(mc.player.getX()) + " / " + (int) Math.floor(mc.player.getY()) + " / " + (int) Math.floor(mc.player.getZ());
 				int width2 = mc.font.width(pos);
-				graphics.fill(right - width2 - 8, 19, right + 2, 33, 0x80000000);
-				graphics.text(mc.font, pos, right - width2 - 4, 22, 0xFFFFFFFF, true);
+				graphics.fill(right - width2 - 8, y, right + 2, y + 14, 0x80000000);
+				graphics.text(mc.font, pos, right - width2 - 4, y + 3, 0xFFFFFFFF, true);
 			}
 		});
 	}
 
-	private static String pingText(Minecraft mc) {
+	private static boolean isHudOn(String id) {
 		try {
+			Module module = ModuleManager.byId(id);
+			return module != null && module.isEnabled();
+		} catch (Exception ignored) {
+			return false;
+		}
+	}
+
+	private static String pingText(Minecraft mc) {		try {
 			if (mc.getConnection() != null && mc.player != null) {
 				PlayerInfo info = mc.getConnection().getPlayerInfo(mc.getGameProfile().id());
 				if (info != null) {

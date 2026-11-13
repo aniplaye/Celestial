@@ -17,7 +17,7 @@ public class AntiAfkModule extends Module {
 	private int sneakTimer;
 
 	public AntiAfkModule() {
-		super("antiafk", "AntiAFK", "Avoid idle kicks: jump + sneak pulse.", Category.PLAYER, KeyCodes.KEY_K);
+		super("antiafk", "AntiAFK", "Avoid idle kicks: jump + sneak pulse.", Category.GAMEPLAY, KeyCodes.KEY_K);
 	}
 
 	@Override

@@ -9,7 +9,7 @@ public class FullBrightModule extends Module {
 	private double previousGamma = 1.0;
 
 	public FullBrightModule() {
-		super("fullbright", "FullBright", "Maximum brightness everywhere.", Category.RENDER, KeyCodes.KEY_P);
+		super("fullbright", "FullBright", "Brighten your world.", Category.VISUAL, KeyCodes.KEY_P);
 	}
 
 	@Override

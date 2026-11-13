@@ -2,9 +2,10 @@ package com.celestial.client.module;
 
 /** Module categories shown as filters on the Modules tab. */
 public enum Category {
-	RENDER("Render"),
-	MOVEMENT("Movement"),
-	PLAYER("Player");
+	HUD("HUD"),
+	VISUAL("Visual"),
+	GAMEPLAY("Gameplay"),
+	INTERFACE("Interface");
 
 	private final String label;
 

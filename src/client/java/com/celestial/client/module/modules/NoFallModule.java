@@ -7,7 +7,7 @@ import com.celestial.client.KeyCodes;
 
 public class NoFallModule extends Module {
 	public NoFallModule() {
-		super("nofall", "NoFall", "Never take fall damage.", Category.MOVEMENT, KeyCodes.KEY_B);
+		super("nofall", "NoFall", "Never take fall damage.", Category.GAMEPLAY, KeyCodes.KEY_B);
 	}
 
 	@Override

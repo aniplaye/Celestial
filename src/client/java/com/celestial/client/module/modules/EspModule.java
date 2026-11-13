@@ -17,7 +17,7 @@ public class EspModule extends Module {
 	private static final int GLOWING_FLAG = 6;
 
 	public EspModule() {
-		super("esp", "EntityESP", "Outline entities through walls.", Category.RENDER, KeyCodes.KEY_J);
+		super("esp", "EntityESP", "Outline entities through walls.", Category.VISUAL, KeyCodes.KEY_J);
 	}
 
 	@Override
