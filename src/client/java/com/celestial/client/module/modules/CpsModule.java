@@ -45,7 +45,7 @@ public class CpsModule extends Module {
 	@Override
 	public void onTick(Minecraft mc) {
 		long now = System.currentTimeMillis();
-		if (mc.screen != null) {
+		if (inMenu(mc)) {
 			drain(leftClick);
 			drain(rightClick);
 		} else {
@@ -60,6 +60,15 @@ public class CpsModule extends Module {
 		prune(rightStamps, now);
 		leftCps = leftStamps.size();
 		rightCps = rightStamps.size();
+	}
+
+	private static boolean inMenu(Minecraft mc) {
+		try {
+			return mc != null && mc.gui != null
+				&& ((com.celestial.mixin.GuiAccessor) mc.gui).celestial$getScreen() != null;
+		} catch (Exception ignored) {
+			return false;
+		}
 	}
 
 	private static void drain(KeyMapping key) {

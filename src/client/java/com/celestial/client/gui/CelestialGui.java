@@ -1069,10 +1069,10 @@ public class CelestialGui extends Screen {
 			}
 			case MODULES: {
 				if (searchBox != null) {
-					int pad = searchPad();
-					int bx = searchBox.getX() - pad;
+					int spad = searchPad();
+					int bx = searchBox.getX() - spad;
 					int by = searchBox.getY() - (int) (4 * s);
-					int bw = searchBox.getWidth() + pad + (int) (8 * s);
+					int bw = searchBox.getWidth() + spad + (int) (8 * s);
 					int bh = searchBox.getHeight() + (int) (8 * s);
 					CelestialWidget.roundedPanel(graphics, bx, by, bw, bh, 11,
 						CelestialWidget.withAlpha(0xE0161620, a),
