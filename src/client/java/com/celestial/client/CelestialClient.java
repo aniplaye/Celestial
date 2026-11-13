@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.resources.Identifier;
@@ -55,11 +56,19 @@ public class CelestialClient implements ClientModInitializer {
 			}
 			while (guiKey.consumeClick()) {
 				// Open-only: closing is handled inside CelestialGui.keyPressed
-				// (Right Shift / ESC), which is focus-aware. This avoids
-				// reading Minecraft's private current-screen field (26.3
-				// no longer exposes it) and avoids double-toggle races.
-				// Never yank the user out of chat typing either.
-				if (!CelestialGui.isOpen() && !CelestialGui.justClosed() && !isChatFocused(client)) {
+				// (Right Shift / ESC), which is focus-aware. The current
+				// screen lives in Gui (private in 26.3), read via GuiAccessor:
+				// only open over the bare game world, never over chat,
+				// inventory, or our own menu.
+				if (CelestialGui.isOpen() || CelestialGui.justClosed()) {
+					continue;
+				}
+				Screen current = null;
+				try {
+					current = ((com.celestial.mixin.GuiAccessor) client.gui).celestial$getScreen();
+				} catch (Exception ignored) {
+				}
+				if (current == null) {
 					client.setScreenAndShow(new CelestialGui());
 				}
 			}
@@ -100,14 +109,6 @@ public class CelestialClient implements ClientModInitializer {
 				graphics.text(mc.font, pos, right - width2 - 4, 22, 0xFFFFFFFF, true);
 			}
 		});
-	}
-
-	private static boolean isChatFocused(Minecraft mc) {
-		try {
-			return mc.gui != null && mc.gui.getChat() != null && mc.gui.getChat().isChatFocused();
-		} catch (Exception e) {
-			return false;
-		}
 	}
 
 	private static String pingText(Minecraft mc) {

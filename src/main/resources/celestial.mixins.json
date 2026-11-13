@@ -5,6 +5,7 @@
 	"client": [
 		"TitleScreenMixin",
 		"MinecraftAccessor",
+		"GuiAccessor",
 		"XRayMixin",
 		"EntityAccessor"
 	],
